@@ -40,6 +40,7 @@ app.use('/api/login',loginRoutes)
 
 // Home route to check if the server is running
 app.get('/', (req, res) => {
+    console.log("djfkldsjfldskj")
     res.send('Attendance System API is running!');
 });
 
