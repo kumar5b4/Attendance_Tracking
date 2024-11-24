@@ -1,50 +1,125 @@
-const Employee = require('../Models/Employee');
-const Company = require('../Models/Company');
-
-// Controller function to add an employee to a specific branch
+const { Employee, RoleEnum } = require("../Models/Employee");
+const Branch = require("../Models/Branch");
+const bcrypt = require("bcrypt");
+const jwt = require('jsonwebtoken');
 const addEmployee = async (req, res) => {
-    try {
-        const { employeeId, name, email, roleId, roleName, designation, password, mobile } = req.body;
+  try {
+    const { name, email, password, branchId, roleId } = req.body;
 
-        // Get companyId, branchId, and roleId from the authenticated user's token (from req.user)
-        const { companyId, branchId, roleId: userRoleId } = req.user;
-
-        // Validate role: Only Manager (1) or HR (2) can add employees
-        if (![1, 2].includes(userRoleId)) {
-            return res.status(403).json({ error: "You do not have permission to add employees" });
-        }
-
-        // Validate that the user is adding an employee to their own company and branch
-        if (!companyId || !branchId) {
-            return res.status(400).json({ error: "Company or branch details are missing for the user" });
-        }
-
-        // Check if the employeeId or email already exists
-        const existingEmployee = await Employee.findOne({ $or: [{ employeeId }, { email }] });
-        if (existingEmployee) {
-            return res.status(400).json({ error: "Employee with this ID or email already exists" });
-        }
-
-        // Create and save the new employee
-        const employee = new Employee({
-            employeeId,
-            name,
-            email,
-            companyId,  // Use companyId from logged-in user
-            branchId,   // Use branchId from logged-in user
-            roleId,     // Role ID of the new employee (this can be passed in the request body)
-            roleName,
-            designation,
-            password,
-            mobile
-        });
-
-        await employee.save();
-
-        res.status(201).json({ message: "Employee added successfully", employee });
-    } catch (error) {
-        res.status(400).json({ error: error.message });
+    // Validate required fields
+    if (!name || !email || !password || !branchId || roleId === undefined) {
+      return res.status(400).json({ message: "All fields are required." });
     }
+
+       
+    if (!req.user) {
+      return res.status(403).json({ message: "Access denied. Unauthorized user." });
+    }
+
+    const userRoleId = req.user.roleId;
+    debugger;
+    // Role-based permission logic
+    if (
+      (userRoleId === 4 && roleId !== RoleEnum.MANAGER) || // Role 4 can only add Managers
+      (userRoleId === RoleEnum.MANAGER && ![RoleEnum.HR, RoleEnum.SOFTWARE_DEV].includes(roleId)) || // Manager can add HR and Software Dev
+      (userRoleId === RoleEnum.HR && roleId !== RoleEnum.SOFTWARE_DEV) || // HR can only add Software Dev
+      (userRoleId === RoleEnum.SOFTWARE_DEV) // Software Dev can't add anyone
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Access denied. You do not have permission to add this role." });
+    }
+
+     console.log("branchId",branchId);
+    const branch = await Branch.findOne({branchId : branchId});
+    if (!branch || branch.companyId.toString() !== req.user.companyId) {
+      return res.status(403).json({ message: "Invalid branch or unauthorized access." });
+    }
+
+    // Hash the employee's password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create and save the new employee
+    const newEmployee = new Employee({
+      name,
+      email,
+      password: hashedPassword,
+      companyId: req.user.companyId,
+      branchId,
+      roleId,
+    });
+
+    const savedEmployee = await newEmployee.save();
+
+    res.status(201).json({
+      message: "Employee added successfully.",
+      employee: {
+        id: savedEmployee._id,
+        name: savedEmployee.name,
+        email: savedEmployee.email,
+        roleId: savedEmployee.roleId,
+        branchId: savedEmployee.branchId,
+      },
+    });
+  } catch (error) {
+    console.error("Error adding employee:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
 };
 
-module.exports = { addEmployee };
+
+const employeeLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate request body
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required." });
+    }
+
+    // Find the employee by email
+    const employee = await Employee.findOne({ email : email });
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found." });
+    }
+
+    // Compare the provided password with the hashed password
+    const isPasswordValid = await bcrypt.compare(password, employee.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid credentials." });
+    }
+
+    // Generate a JWT token
+    const token = jwt.sign(
+      { 
+        id: employee._id, 
+        email: employee.email, 
+        roleId: employee.roleId, 
+        companyId: employee.companyId, 
+        branchId: employee.branchId 
+      },
+      process.env.JWT_SECRET_KEY, // Use your secret key
+      { expiresIn: "24h" } // Token expiration time
+    );
+
+    // Respond with the token
+    res.status(200).json({
+      message: "Login successful.",
+      token,
+      employee: {
+        id: employee._id,
+        name: employee.name,
+        email: employee.email,
+        roleId: employee.roleId,
+        companyId: employee.companyId,
+        branchId: employee.branchId,
+      },
+    });
+  } catch (error) {
+    console.error("Error during employee login:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+
+module.exports = { addEmployee  , employeeLogin  };

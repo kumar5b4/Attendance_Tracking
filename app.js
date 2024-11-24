@@ -3,12 +3,9 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
 
-// Import routes
-const locationRoutes = require('./Routes/locationRoutes');
-const roleRoutes = require('./Routes/roleRoutes');
+const companyRoutes = require('./Routes/CompanyRoutes');
 const employeeRoutes = require('./Routes/employeeRoutes');
-const loginRoutes = require('./Routes/loginRoutes')
-
+const attendanceRoutes = require('./Routes/attendanceRoutes')
 dotenv.config();
 
 // Initialize Express app
@@ -30,11 +27,11 @@ mongoose.connect(process.env.MONGODB_URI)
     }));
 
 
-// Define API Routes
-app.use('/api/attendance', locationRoutes);  // Location-based login/logout
-app.use('/api/roles', roleRoutes);         // Role management for HR/Employee
-app.use('/api/users', employeeRoutes );         // User creation and management (HR, Employee)
-app.use('/api/login',loginRoutes)
+// Define API Routes 
+
+app.use("/api/company", companyRoutes);
+app.use("/api/company", employeeRoutes ) ;
+app.use("/api/company", attendanceRoutes);     
 
 
 
