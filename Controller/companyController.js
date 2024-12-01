@@ -70,62 +70,19 @@ const register = async (req, res) => {
   }
 };
 
-const addBranch = async (req, res) => {
-    try {
-        debugger;
-        console.log(req.user,"companydetails");
-        const  companyId  = req.user.companyId;
-        const { branchName, area, latitude, longitude, date  } = req.body;
-         console.log(req.user)
-        if (!branchName || !area || latitude === undefined || longitude === undefined || !date || !companyId) {
-            return res.status(400).json({ message: 'All fields are required.' });
-        }
 
 
-        if (!req.user || req.user.roleId !==4) {
-            return res.status(403).json({ message: 'Access denied. Only users with role 4 can add branches.' });
-        }
-
-        // Check if the companyId in token matches the companyId in the request body
-        if (req.user.companyId !== companyId) {
-            return res.status(403).json({ message: 'Invalid companyId. Token and body companyId must match.' });
-        }
-
-    
-        const company = await Company.findOne({companyId : companyId});
-        console.log(company);
-        if (!company) {
-            return res.status(404).json({ message: 'Company not found.' });
-        }
-
-        // Ensure the company is approved before allowing branch addition
-        if (!company.isApproved) {
-            return res.status(400).json({ message: 'Company is not approved to add branches.' });
-        }
-
-        // Create and save the new branch
-        const newBranch = new Branch({
-            branchName,
-            area,
-            latitude,
-            longitude,
-            date,
-            companyId, // Associate branch with the company
-        });
-
-        const savedBranch = await newBranch.save();
-
-        res.status(201).json({
-            message: 'Branch added successfully.',
-            branch: savedBranch,
-        });
-
-    } catch (error) {
-        console.error('Error adding branch:', error);
-        res.status(500).json({ message: 'Internal server error.' });
+const getCompanies = async (req,res) =>{
+  try {
+    const companiesList = await Company.find();
+    if(!companiesList){
+      return res.status(204).json({ message: 'No Companies Found' });
     }
-};
-
+    return res.status(200).json({message : `Companies Found of total ${companiesList.length}`, List : companiesList} )
+  } catch (error) {
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+}
   
   const login = async (req, res) => {
     try {
@@ -172,4 +129,4 @@ const addBranch = async (req, res) => {
     }
   }
 
-module.exports = { register , addBranch , login };
+module.exports = { register ,  login , getCompanies};

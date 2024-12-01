@@ -4,96 +4,115 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const Company = require("../Models/Company");
 const Branch = require("../Models/Branch");
+const Employees = require("../Models/Employee")
 const { Manager, RoleEnum } = require("../Models/Employee");
 
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET; 
 
-// Middleware: Validate JWT Token
-const authenticateToken = (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) {
-    return res.status(401).json({ message: "Access token missing or invalid." });
-  }
 
+const getBranchesByCompanyId = async (req, res) => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.companyId = decoded.companyId; // Attach companyId to the request
-    req.email = decoded.email;
-    req.roleId = decoded.roleId; // Include roleId from the token
-    next();
+      const { companyId } = req.params;
+
+      const isExist = await Company.findOne({companyId : companyId});
+      if(!isExist){
+        return res.status(404).json({message:'No company details found'})
+      }
+      const branches = await Branch.find({ companyId :  companyId });
+
+      if (branches.length === 0) {
+          return res.status(404).json({ message: 'No branches found for the given company ID.' });
+      }
+
+      res.status(200).json({message : "Branch details Found", BranchDetails : branches });
   } catch (error) {
-    console.error("Invalid token:", error);
-    res.status(403).json({ message: "Invalid or expired token." });
+      console.error(error);
+      res.status(500).json({ message: 'Internal server error.' });
   }
 };
 
+const getBranchDetailsByBranchId = async (req ,res) =>{
+   try {
+    const { branchId } = req.params;
 
-const verifyRoleAccess = (req, res, next) => {
-  if (req.roleId !== RoleEnum.MANAGER || req.roleId != RoleEnum.HR) {
-    return res.status(403).json({ message: "Only Managers and Hr can perform this action." });
+    const branchDetails = await Branch.findOne({branchId : branchId});
+  
+   
+    if (!branchDetails) {
+        return res.status(404).json({ message: 'No branches found for the given company ID.' });
+    }
+    
+    const employeesList = await Employees.find({branchId : branchId})
+
+    res.status(200).json({message : "Branch details Found", branchDetails : branchDetails  , employeesInBranch : employeesList  });
+  
+   } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error.' });
   }
-  next();
+  } 
+
+  const addBranch = async (req, res) => {
+    try {
+        debugger;
+        console.log(req.user,"companydetails");
+        const  companyId  = req.user.companyId;
+        const { branchName, area, latitude, longitude, date  } = req.body;
+         console.log(req.user)
+        if (!branchName || !area || latitude === undefined || longitude === undefined || !date || !companyId) {
+            return res.status(400).json({ message: 'All fields are required.' });
+        }
+
+
+        if (!req.user || req.user.roleId !==4) {
+            return res.status(403).json({ message: 'Access denied. Only users with role 4 can add branches.' });
+        }
+
+        // Check if the companyId in token matches the companyId in the request body
+        if (req.user.companyId !== companyId) {
+            return res.status(403).json({ message: 'Invalid companyId. Token and body companyId must match.' });
+        }
+
+    
+        const company = await Company.findOne({companyId : companyId});
+        console.log(company);
+        if (!company) {
+            return res.status(404).json({ message: 'Company not found.' });
+        }
+
+        // Ensure the company is approved before allowing branch addition
+        if (!company.isApproved) {
+            return res.status(400).json({ message: 'Company is not approved to add branches.' });
+        }
+
+        // Create and save the new branch
+        const newBranch = new Branch({
+            branchName,
+            area,
+            latitude,
+            longitude,
+            date,
+            companyId, // Associate branch with the company
+        });
+
+        const savedBranch = await newBranch.save();
+
+        res.status(201).json({
+            message: 'Branch added successfully.',
+            branch: savedBranch,
+        });
+
+    } catch (error) {
+        console.error('Error adding branch:', error);
+        res.status(500).json({ message: 'Internal server error.' });
+    }
 };
 
 
-// POST: Add a new branch
 
 
-router.post("/add-employee", authenticateToken, verifyRoleAccess, async (req, res) => {
-  try {
-    const { branchId, name, email, password, roleId } = req.body;
 
-    // Validate roleId for employee (must be HR or Software Developer)
-    if (![RoleEnum.HR, RoleEnum.SOFTWARE_DEV].includes(roleId)) {
-      return res.status(400).json({ message: "Invalid role assigned to employee." });
-    }
 
-    // Validate input
-    if (!branchId || !name || !email || !password || !roleId) {
-      return res.status(400).json({ message: "All fields are required." });
-    }
-
-    // Find the branch by branchId and ensure it belongs to the same company
-    const branch = await Branch.findById(branchId);
-    if (!branch) {
-      return res.status(404).json({ message: "Branch not found." });
-    }
-
-    if (branch.companyId.toString() !== req.companyId.toString()) {
-      return res.status(403).json({ message: "You are not authorized to add employees to this branch." });
-    }
-
-    // Hash the password for the new employee
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create a new employee (Manager, HR, or Software Developer)
-    const newEmployee = new Manager({
-      name,
-      email,
-      password: hashedPassword,
-      companyId: req.companyId,
-      branchId,
-      roleId, // The roleId could be 2 for HR or 3 for Software Developer
-    });
-
-    const savedEmployee = await newEmployee.save();
-
-    res.status(201).json({
-      message: "Employee added successfully.",
-      employee: {
-        id: savedEmployee._id,
-        name: savedEmployee.name,
-        email: savedEmployee.email,
-        branchId: savedEmployee.branchId,
-        roleId: savedEmployee.roleId, // Include roleId in the response
-      },
-    });
-  } catch (error) {
-    console.error("Error adding employee:", error.message);
-    res.status(500).json({ message: error.message || "Internal server error." });
-  }
-});
-
-module.exports = {addBranch};
+module.exports = {  getBranchesByCompanyId , getBranchDetailsByBranchId , addBranch};

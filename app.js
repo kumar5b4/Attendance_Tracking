@@ -3,14 +3,19 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
 
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./swagger');
+
 const companyRoutes = require('./Routes/CompanyRoutes');
 const employeeRoutes = require('./Routes/employeeRoutes');
 const attendanceRoutes = require('./Routes/attendanceRoutes');
-const forgotPassword = require('./Routes/forgotPassword')
+const forgotPassword = require('./Routes/forgotPassword');
+const branchRoutes  = require('./Routes/branchRoutes')
 dotenv.config();
 
 // Initialize Express app
 const app = express();
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Middleware to parse JSON bodies
 app.use(express.json());
@@ -34,7 +39,7 @@ app.use("/api/company", companyRoutes);
 app.use("/api/company", employeeRoutes ) ;
 app.use("/api/company", attendanceRoutes);     
 app.use("/api/company", forgotPassword );
-
+app.use("/api/company", branchRoutes )
 
 
 // Home route to check if the server is running
@@ -46,5 +51,6 @@ app.get('/', (req, res) => {
 // Start the server
 const PORT = process.env.PORT 
 app.listen(PORT, () => {
+    console.log(`Swagger docs available at http://localhost:${PORT}/api-docs`)
     console.log(`Server is running on port ${PORT}`);
 });
