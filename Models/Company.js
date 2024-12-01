@@ -5,7 +5,7 @@ const companySchema = new mongoose.Schema({
   companyName: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  isApproved:{type: Boolean},
+  isApproved: { type: Boolean },
   startDate: { type: Date, required: true },
   area: { type: String, required: true },
   latitude: { type: Number, required: true },
@@ -15,4 +15,3 @@ const companySchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model("Company", companySchema);
-

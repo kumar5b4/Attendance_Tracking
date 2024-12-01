@@ -10,4 +10,5 @@ const branchSchema = new mongoose.Schema({
   timestamps: true, // Automatically add createdAt and updatedAt fields
 });
 
-module.exports = mongoose.model("Branch", branchSchema);
+const Branch = mongoose.model("Branch", branchSchema);
+module.exports = Branch;

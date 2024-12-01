@@ -1,7 +1,8 @@
-const { Employee, RoleEnum } = require("../Models/Employee");
+const Employee = require("../Models/Employee");
 const Branch = require("../Models/Branch");
 const bcrypt = require("bcrypt");
 const jwt = require('jsonwebtoken');
+const RoleEnum = require("../Models/RoleEnum");
 const addEmployee = async (req, res) => {
   try {
     const { name, email, password, branchId, roleId } = req.body;
@@ -11,7 +12,7 @@ const addEmployee = async (req, res) => {
       return res.status(400).json({ message: "All fields are required." });
     }
 
-       
+
     if (!req.user) {
       return res.status(403).json({ message: "Access denied. Unauthorized user." });
     }
@@ -20,7 +21,7 @@ const addEmployee = async (req, res) => {
     debugger;
     // Role-based permission logic
     if (
-      (userRoleId === 4 && roleId !== RoleEnum.MANAGER) || // Role 4 can only add Managers
+      (userRoleId === 4 && userRoleId === RoleEnum.MANAGER) || // Role 4 can only add Managers
       (userRoleId === RoleEnum.MANAGER && ![RoleEnum.HR, RoleEnum.SOFTWARE_DEV].includes(roleId)) || // Manager can add HR and Software Dev
       (userRoleId === RoleEnum.HR && roleId !== RoleEnum.SOFTWARE_DEV) || // HR can only add Software Dev
       (userRoleId === RoleEnum.SOFTWARE_DEV) // Software Dev can't add anyone
@@ -29,9 +30,11 @@ const addEmployee = async (req, res) => {
         .status(403)
         .json({ message: "Access denied. You do not have permission to add this role." });
     }
+    debugger;
+    console.log("branchId", branchId);
 
-     console.log("branchId",branchId);
-    const branch = await Branch.findOne({branchId : branchId});
+    const branch = await Branch.findOne({ branchId: branchId });
+
     if (!branch || branch.companyId.toString() !== req.user.companyId) {
       return res.status(403).json({ message: "Invalid branch or unauthorized access." });
     }
@@ -39,15 +42,17 @@ const addEmployee = async (req, res) => {
     // Hash the employee's password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create and save the new employee
+
     const newEmployee = new Employee({
       name,
       email,
       password: hashedPassword,
       companyId: req.user.companyId,
       branchId,
-      roleId,
+      roleId: 1
     });
+
+    console.log("New Employee:", newEmployee);
 
     const savedEmployee = await newEmployee.save();
 
@@ -61,6 +66,20 @@ const addEmployee = async (req, res) => {
         branchId: savedEmployee.branchId,
       },
     });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   } catch (error) {
     console.error("Error adding employee:", error);
     res.status(500).json({ message: "Internal server error." });
@@ -71,32 +90,32 @@ const addEmployee = async (req, res) => {
 const employeeLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
+    
 
-    // Validate request body
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required." });
     }
-
-    // Find the employee by email
-    const employee = await Employee.findOne({ email : email });
+    debugger;
+    const employee = await Employee.findOne({ email: email });
     if (!employee) {
       return res.status(404).json({ message: "Employee not found." });
     }
-
-    // Compare the provided password with the hashed password
+    console.log(employee);
+    
     const isPasswordValid = await bcrypt.compare(password, employee.password);
-    if (!isPasswordValid) {
+
+    if (isPasswordValid) {
       return res.status(401).json({ message: "Invalid credentials." });
     }
 
     // Generate a JWT token
     const token = jwt.sign(
-      { 
-        id: employee._id, 
-        email: employee.email, 
-        roleId: employee.roleId, 
-        companyId: employee.companyId, 
-        branchId: employee.branchId 
+      {
+        id: employee._id,
+        email: employee.email,
+        roleId: employee.roleId,
+        companyId: employee.companyId,
+        branchId: employee.branchId
       },
       process.env.JWT_SECRET_KEY, // Use your secret key
       { expiresIn: "24h" } // Token expiration time
@@ -122,4 +141,4 @@ const employeeLogin = async (req, res) => {
 };
 
 
-module.exports = { addEmployee  , employeeLogin  };
+module.exports = { addEmployee, employeeLogin };
