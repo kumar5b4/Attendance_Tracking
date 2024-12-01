@@ -104,7 +104,7 @@ const employeeLogin = async (req, res) => {
     
     const isPasswordValid = await bcrypt.compare(password, employee.password);
 
-    if (isPasswordValid) {
+    if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid credentials." });
     }
 
