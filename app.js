@@ -5,7 +5,8 @@ const cors = require('cors');
 
 const companyRoutes = require('./Routes/CompanyRoutes');
 const employeeRoutes = require('./Routes/employeeRoutes');
-const attendanceRoutes = require('./Routes/attendanceRoutes')
+const attendanceRoutes = require('./Routes/attendanceRoutes');
+const forgotPassword = require('./Routes/forgotPassword')
 dotenv.config();
 
 // Initialize Express app
@@ -32,6 +33,7 @@ mongoose.connect(process.env.MONGODB_URI)
 app.use("/api/company", companyRoutes);
 app.use("/api/company", employeeRoutes ) ;
 app.use("/api/company", attendanceRoutes);     
+app.use("/api/company", forgotPassword );
 
 
 
