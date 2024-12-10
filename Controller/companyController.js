@@ -74,6 +74,7 @@ const register = async (req, res) => {
 
 const getCompanies = async (req,res) =>{
   try {
+    debugger;
     const companiesList = await Company.find();
     if(!companiesList){
       return res.status(204).json({ message: 'No Companies Found' });
@@ -87,7 +88,7 @@ const getCompanies = async (req,res) =>{
   const login = async (req, res) => {
     try {
       const { email, password } = req.body;
-  
+        debugger;
       // Validate required fields
       if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required." });

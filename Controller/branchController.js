@@ -115,4 +115,6 @@ const getBranchDetailsByBranchId = async (req ,res) =>{
 
 
 
+
+
 module.exports = {  getBranchesByCompanyId , getBranchDetailsByBranchId , addBranch};
